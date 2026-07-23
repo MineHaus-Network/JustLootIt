@@ -141,7 +141,8 @@ public record ProtoChunkData26_2(PalettedContainerFactory containerFactory, Chun
 
     public static ProtoChunkData26_2 parse(LevelHeightAccessor levelHeight, PalettedContainerFactory containerFactory,
         CompoundTag chunkData) {
-        ServerLevel serverLevel = (ServerLevel) levelHeight;
+        // Offline conversion passes ProtoWorld26_2, so Paper's anti-xray presets are only available for a loaded level.
+        ServerLevel serverLevel = levelHeight instanceof ServerLevel ? (ServerLevel) levelHeight : null;
         if (chunkData.getString("Status").isEmpty()) {
             return null;
         } else {
@@ -206,8 +207,8 @@ public record ProtoChunkData26_2(PalettedContainerFactory containerFactory, Chun
                     int y = sectionTag.getByteOr("Y", (byte) 0);
                     LevelChunkSection section;
                     if (y >= levelHeight.getMinSectionY() && y <= levelHeight.getMaxSectionY()) {
-                        BlockState[] presetBlockStates = serverLevel.chunkPacketBlockController.getPresetBlockStates(serverLevel, chunkPos,
-                            y);
+                        BlockState[] presetBlockStates = serverLevel == null ? null
+                            : serverLevel.chunkPacketBlockController.getPresetBlockStates(serverLevel, chunkPos, y);
                         Codec<PalettedContainer<BlockState>> antiXrayBlockStateCodec = presetBlockStates == null ? blockStatesCodec
                             : PalettedContainer.codecRW(BlockState.CODEC, containerFactory.blockStatesStrategy(),
                                 Blocks.AIR.defaultBlockState(), presetBlockStates);
