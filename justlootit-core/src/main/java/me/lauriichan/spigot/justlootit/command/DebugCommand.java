@@ -34,6 +34,13 @@ import me.lauriichan.spigot.justlootit.util.EntityUtil;
 @Permission(JustLootItPermission.COMMAND_DEBUG)
 public class DebugCommand implements ICommandExtension {
 
+    @Action("accesslog")
+    public void accesslog(final JustLootItPlugin plugin, final Actor<?> actor,
+        @Argument(name = "enabled", index = 0) final boolean enabled) {
+        plugin.containerAccessDiagnostics(enabled);
+        actor.sendMessage("JustLootIt container access diagnostics are now " + (enabled ? "enabled" : "disabled") + ".");
+    }
+
     @Action("pdc")
     @Description("$#command.description.justlootit.debug.pdc")
     public void pdc(final JustLootItPlugin plugin, final Actor<?> actor,
