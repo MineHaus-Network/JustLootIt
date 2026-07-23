@@ -4,8 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Bukkit;
@@ -97,6 +99,9 @@ public final class JustLootItPlugin extends BasePlugin<JustLootItPlugin> impleme
 
     private final CacheTickTimer levelTickTimer = new CacheTickTimer();
     private final CacheTickTimer playerTickTimer = new CacheTickTimer();
+    private final AtomicLong containerAccessTraceSequence = new AtomicLong();
+
+    private volatile boolean containerAccessDiagnostics;
 
     private StorageMigrator storageMigrator;
     private StorageAdapterRegistry levelStorageRegistry;
@@ -557,6 +562,48 @@ public final class JustLootItPlugin extends BasePlugin<JustLootItPlugin> impleme
 
     public SpigotUpdater<PluginVersion> updater() {
         return updater;
+    }
+
+    /*
+     * Runtime diagnostics
+     */
+
+    public boolean containerAccessDiagnostics() {
+        return containerAccessDiagnostics;
+    }
+
+    public void containerAccessDiagnostics(final boolean enabled) {
+        if (containerAccessDiagnostics == enabled) {
+            logger().info("Container access diagnostics are already %s.".formatted(enabled ? "enabled" : "disabled"));
+            return;
+        }
+        containerAccessDiagnostics = enabled;
+        logger().info("Container access diagnostics %s.".formatted(enabled ? "enabled" : "disabled"));
+        if (!enabled) {
+            return;
+        }
+        final ServerVersion serverVersion = platform.version();
+        logger().info(
+            "[JLI-Access] runtime: plugin=%s, serverName=%s, minecraft=%s, platform=%s, craftBukkitPackage=%s, handler=%s"
+                .formatted(getDescription().getVersion(), Bukkit.getName(),
+                    serverVersion == null ? "unknown" : serverVersion.minecraftVersion(), platform.type(),
+                    serverVersion == null ? "unknown" : serverVersion.craftBukkitPackage(),
+                    versionHandler == null ? "unavailable" : versionHandler.getClass().getName()));
+        logger().info("[JLI-Access] serverVersion: %s".formatted(Bukkit.getVersion()));
+        logger().info("[JLI-Access] plugins: %s".formatted(Arrays.stream(Bukkit.getPluginManager().getPlugins())
+            .map(plugin -> "%s@%s".formatted(plugin.getName(), plugin.getDescription().getVersion())).sorted()
+            .reduce((left, right) -> left + ", " + right).orElse("none")));
+    }
+
+    public long nextContainerAccessTraceId() {
+        return containerAccessTraceSequence.incrementAndGet();
+    }
+
+    public void logContainerAccess(final long traceId, final String message) {
+        if (!containerAccessDiagnostics || traceId <= 0) {
+            return;
+        }
+        logger().info("[JLI-Access #%d] %s".formatted(traceId, message));
     }
 
     /*
